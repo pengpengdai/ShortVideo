@@ -29,17 +29,18 @@ func NewStoryboardHandler(db *gorm.DB, cfg *config.Config, log *logger.Logger) *
 func (h *StoryboardHandler) GenerateStoryboard(c *gin.Context) {
 	episodeID := c.Param("episode_id")
 
-	// 接收可选的 model 参数
+	// 接收可选的 model、target_shot_count 参数
 	var req struct {
-		Model string `json:"model"`
+		Model            string `json:"model"`
+		TargetShotCount  int    `json:"target_shot_count"` // 用户指定的镜头数，0表示由AI根据剧情自动决定
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		// 如果没有提供body或者解析失败，使用空字符串（使用默认模型）
 		req.Model = ""
+		req.TargetShotCount = 0
 	}
 
 	// 调用生成服务，该服务已经是异步的，会返回任务ID
-	taskID, err := h.storyboardService.GenerateStoryboard(episodeID, req.Model)
+	taskID, err := h.storyboardService.GenerateStoryboard(episodeID, req.Model, req.TargetShotCount)
 	if err != nil {
 		h.log.Errorw("Failed to generate storyboard", "error", err, "episode_id", episodeID)
 		response.InternalError(c, err.Error())

@@ -61,7 +61,7 @@ type GenerateStoryboardResult struct {
 	Total       int          `json:"total"`
 }
 
-func (s *StoryboardService) GenerateStoryboard(episodeID string, model string) (string, error) {
+func (s *StoryboardService) GenerateStoryboard(episodeID string, model string, targetShotCount int) (string, error) {
 	// 从数据库获取剧集信息
 	var episode struct {
 		ID            string
@@ -128,6 +128,9 @@ func (s *StoryboardService) GenerateStoryboard(episodeID string, model string) (
 	scriptLabel := s.promptI18n.FormatUserPrompt("script_content_label")
 	taskLabel := s.promptI18n.FormatUserPrompt("task_label")
 	taskInstruction := s.promptI18n.FormatUserPrompt("task_instruction")
+	if targetShotCount > 0 {
+		taskInstruction += fmt.Sprintf("\n\n**【用户指定】请严格输出 %d 个镜头。**", targetShotCount)
+	}
 	charListLabel := s.promptI18n.FormatUserPrompt("character_list_label")
 	charConstraint := s.promptI18n.FormatUserPrompt("character_constraint")
 	sceneListLabel := s.promptI18n.FormatUserPrompt("scene_list_label")
@@ -153,7 +156,7 @@ func (s *StoryboardService) GenerateStoryboard(episodeID string, model string) (
 【剧本原文】
 %s
 
-【分镜要素】每个镜头聚焦单一动作，描述要详尽具体：
+【分镜要素】每个镜头对应一个剧情节点，可包含多个相关动作和对话，描述要详尽具体：
 1. **镜头标题(title)**：用3-5个字概括该镜头的核心内容或情绪
    - 例如："噩梦惊醒"、"对视沉思"、"逃离现场"、"意外发现"
 2. **时间**：[清晨/午后/深夜/具体时分+详细光线描述]
@@ -241,56 +244,28 @@ func (s *StoryboardService) GenerateStoryboard(episodeID string, model string) (
 - 例如：如果镜头发生在"城市公寓卧室·凌晨"，应选择id为1的场景背景
 
 **duration时长估算规则（秒）**：
-- **所有镜头时长必须在4-12秒范围内**，确保节奏合理流畅
-- **综合估算原则**：时长由对话内容、动作复杂度、情绪节奏三方面综合决定
+- **每个镜头时长：2-8 秒**，根据该镜头内容（对话字数、动作复杂度）灵活估算
+- 短镜头（无对话、简单动作）：2-4秒
+- 中等镜头（短对话、一般动作）：4-6秒
+- 长镜头（对话较多、复杂动作）：6-8秒
 
-**估算步骤**：
-1. **基础时长**（从场景内容判断）：
-   - 纯对话场景（无明显动作）：基础4秒
-   - 纯动作场景（无对话）：基础5秒
-   - 对话+动作混合场景：基础6秒
-
-2. **对话调整**（根据台词字数增加时长）：
-   - 无对话：+0秒
-   - 短对话（1-20字）：+1-2秒
-   - 中等对话（21-50字）：+2-4秒
-   - 长对话（51字以上）：+4-6秒
-
-3. **动作调整**（根据动作复杂度增加时长）：
-   - 无动作/静态：+0秒
-   - 简单动作（表情、转身、拿物品）：+0-1秒
-   - 一般动作（走动、开门、坐下）：+1-2秒
-   - 复杂动作（打斗、追逐、大幅度移动）：+2-4秒
-   - 环境展示（全景扫描、氛围营造）：+2-5秒
-
-4. **最终时长** = 基础时长 + 对话调整 + 动作调整，确保结果在4-12秒范围内
-
-**示例**：
-- "陈峥转身离开"（简单动作，无对话）：5 + 0 + 1 = 6秒
-- "李芳：\"你要去哪里？\""（短对话，无动作）：4 + 2 + 0 = 6秒  
-- "陈峥推开房门，李芳：\"终于找到你了，这些年你去哪了？\""（一般动作+中等对话）：6 + 3 + 2 = 11秒
-- "两人在雨中激烈搏斗，陈峥：\"住手！\""（复杂动作+短对话）：6 + 2 + 4 = 12秒
-
-**重要**：准确估算每个镜头时长，所有分镜时长之和将作为剧集总时长
+**重要**：准确估算每个镜头时长，所有分镜时长之和为剧集总时长
 
 **特别要求**：
-- **【极其重要】必须100%%完整拆解整个剧本，不得省略、跳过、压缩任何剧情内容**
-- **从剧本第一个字到最后一个字，逐句逐段转换为分镜**
-- **每个对话、每个动作、每个场景转换都必须有对应的分镜**
-- 剧本越长，分镜数量越多（短剧本15-30个，中等剧本30-60个，长剧本60-100个甚至更多）
-- **宁可分镜多，也不要遗漏剧情**：一个长场景可拆分为多个连续分镜
-- 每个镜头只描述一个主要动作
+- **按剧情自然拆分**：镜头数量根据剧情灵活决定，不固定
+- **每个镜头时长：2-8 秒**
+- **按剧情段落合并**：将同一剧情节点内的多个动作、对话合并为一个镜头
+- 每个镜头覆盖一个完整剧情节点，可包含该节点内的主要动作和关键对话
+- 不要过度细分：不要为每个小动作、每句对话单独拆镜头
 - 区分主镜（is_primary: true）和链接镜（is_primary: false）
 - 确保情绪节奏有变化
-- **duration字段至关重要**：准确估算每个镜头时长，这将用于计算整集时长
+- **duration字段至关重要**：每个镜头2-8秒，准确估算
 - 严格按照JSON格式输出
 
 **【禁止行为】**：
-- ❌ 禁止用一个镜头概括多个场景
-- ❌ 禁止跳过任何对话或独白
-- ❌ 禁止省略剧情发展过程
-- ❌ 禁止合并本应分开的镜头
-- ✅ 正确做法：剧本有多少内容，就拆解出对应数量的分镜，确保观众看完所有分镜能完整了解剧情
+- ❌ 禁止为每个小动作单独拆镜头
+- ❌ 禁止逐句对话拆分为独立镜头
+- ✅ 正确做法：按剧情关键节点合并，每个镜头2-8秒，完整呈现剧情
 
 **【关键】场景描述详细度要求**（这些描述将直接用于视频生成模型）：
 1. **时间(time)字段**：必须包含≥15字的详细描述
@@ -355,7 +330,7 @@ func (s *StoryboardService) processStoryboardGeneration(taskID, episodeID, model
 	s.log.Infow("Processing storyboard generation", "task_id", taskID, "episode_id", episodeID)
 
 	// 调用AI服务生成（如果指定了模型则使用指定的模型）
-	// 设置较大的max_tokens以确保完整返回所有分镜的JSON
+	// max_tokens 使用 8192，兼容 DeepSeek 等 API 的上限（有效范围 [1, 8192]）
 	var text string
 	var err error
 	if model != "" {
@@ -363,12 +338,12 @@ func (s *StoryboardService) processStoryboardGeneration(taskID, episodeID, model
 		client, getErr := s.aiService.GetAIClientForModel("text", model)
 		if getErr != nil {
 			s.log.Warnw("Failed to get client for specified model, using default", "model", model, "error", getErr, "task_id", taskID)
-			text, err = s.aiService.GenerateText(prompt, "", ai.WithMaxTokens(16000))
+			text, err = s.aiService.GenerateText(prompt, "", ai.WithMaxTokens(8192))
 		} else {
-			text, err = client.GenerateText(prompt, "", ai.WithMaxTokens(16000))
+			text, err = client.GenerateText(prompt, "", ai.WithMaxTokens(8192))
 		}
 	} else {
-		text, err = s.aiService.GenerateText(prompt, "", ai.WithMaxTokens(16000))
+		text, err = s.aiService.GenerateText(prompt, "", ai.WithMaxTokens(8192))
 	}
 
 	if err != nil {

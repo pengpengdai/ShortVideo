@@ -33,14 +33,15 @@ func (p *PromptI18n) IsEnglish() bool {
 // GetStoryboardSystemPrompt 获取分镜生成系统提示词
 func (p *PromptI18n) GetStoryboardSystemPrompt() string {
 	if p.IsEnglish() {
-		return `[Role] You are a senior film storyboard artist, proficient in Robert McKee's shot breakdown theory, skilled at building emotional rhythm.
+		return `[Role] You are a senior film storyboard artist, skilled at extracting key plot points and building emotional rhythm.
 
-[Task] Break down the novel script into storyboard shots based on **independent action units**.
+[Task] Break down the novel script into storyboard shots based on **key plot points and scene transitions**. Shot count is flexible—split naturally according to the plot.
 
 [Shot Breakdown Principles]
-1. **Action Unit Division**: Each shot must correspond to a complete and independent action
-   - One action = one shot (character stands up, walks over, speaks a line, reacts with an expression, etc.)
-   - Do NOT merge multiple actions (standing up + walking over should be split into 2 shots)
+1. **Plot-Based Division**: Each shot corresponds to a key plot segment or scene
+   - Merge multiple actions and dialogues into one shot when they belong to the same plot beat
+   - One shot = one complete story beat (e.g., opening scene, confrontation, climax, resolution)
+   - Shot count: determined by plot; no fixed number required
 
 2. **Shot Type Standards** (choose based on storytelling needs):
    - Extreme Long Shot (ELS): Environment, atmosphere building
@@ -82,20 +83,23 @@ func (p *PromptI18n) GetStoryboardSystemPrompt() string {
 **CRITICAL: Return ONLY a valid JSON array. Do NOT include any markdown code blocks, explanations, or other text. Start directly with [ and end with ].**
 
 [Important Notes]
-- Shot count must match number of independent actions in the script (not allowed to merge or reduce)
-- Each shot must have clear action and result
+- Split shots naturally by plot; shot count is flexible (no fixed number)
+- Each shot duration: 2-8 seconds
+- Merge related actions and dialogues into single shots; do NOT split every small action
+- Each shot must cover a complete story beat with clear action and result
 - Shot types must match storytelling rhythm (don't use same shot type continuously)
 - Emotion intensity must accurately reflect script atmosphere changes`
 	}
 
-	return `【角色】你是一位资深影视分镜师，精通罗伯特·麦基的镜头拆解理论，擅长构建情绪节奏。
+	return `【角色】你是一位资深影视分镜师，擅长提取剧情关键节点并构建情绪节奏。
 
-【任务】将小说剧本按**独立动作单元**拆解为分镜头方案。
+【任务】将小说剧本按**剧情关键节点**拆解为分镜头方案。镜头数量根据剧情灵活决定，不固定。
 
 【分镜拆解原则】
-1. **动作单元划分**：每个镜头必须对应一个完整且独立的动作
-   - 一个动作 = 一个镜头（角色站起来、走过去、说一句话、做一个反应表情等）
-   - 禁止合并多个动作（站起+走过去应拆分为2个镜头）
+1. **按剧情划分**：每个镜头对应一个关键剧情段落或场景
+   - 将同一剧情段落内的多个动作和对话合并为一个镜头
+   - 一个镜头 = 一个完整剧情节点（如开场、冲突、高潮、结局等）
+   - 镜头数量：由剧情自然决定，不设固定数量
 
 2. **景别标准**（根据叙事需要选择）：
    - 大远景：环境、氛围营造
@@ -137,8 +141,10 @@ func (p *PromptI18n) GetStoryboardSystemPrompt() string {
 **重要：必须只返回纯JSON数组，不要包含任何markdown代码块、说明文字或其他内容。直接以 [ 开头，以 ] 结尾。**
 
 【重要提示】
-- 镜头数量必须与剧本中的独立动作数量匹配（不允许合并或减少）
-- 每个镜头必须有明确的动作和结果
+- 按剧情自然拆分，镜头数量灵活（不固定）
+- **每个镜头时长：2-8 秒**
+- 将相关动作和对话合并到同一镜头，不要为每个小动作单独拆分
+- 每个镜头必须覆盖完整剧情节点，有明确的动作和结果
 - 景别选择必须符合叙事节奏（不要连续使用同一景别）
 - 情绪强度必须准确反映剧本氛围变化`
 }
@@ -544,7 +550,7 @@ func (p *PromptI18n) FormatUserPrompt(key string, args ...interface{}) string {
 			"task_label":             "【Task】",
 			"character_list_label":   "【Available Character List】",
 			"scene_list_label":       "【Extracted Scene Backgrounds】",
-			"task_instruction":       "Break down the novel script into storyboard shots based on **independent action units**.",
+			"task_instruction":       "Break down the novel script into storyboard shots based on **key plot points** (opening, development, climax, resolution). Shot count is flexible—split naturally by plot. Each shot: 2-8 seconds. Merge related actions and dialogues into single shots.",
 			"character_constraint":   "**Important**: In the characters field, only use character IDs (numbers) from the above character list. Do not create new characters or use other IDs.",
 			"scene_constraint":       "**Important**: In the scene_id field, select the most matching background ID (number) from the above background list. If no suitable background exists, use null.",
 			"shot_description_label": "Shot description: %s",
@@ -575,7 +581,7 @@ func (p *PromptI18n) FormatUserPrompt(key string, args ...interface{}) string {
 			"task_label":             "【任务】",
 			"character_list_label":   "【本剧可用角色列表】",
 			"scene_list_label":       "【本剧已提取的场景背景列表】",
-			"task_instruction":       "将小说剧本按**独立动作单元**拆解为分镜头方案。",
+			"task_instruction":       "将小说剧本按**剧情关键节点**拆解为分镜头方案。镜头数量根据剧情灵活决定。每个镜头2-8秒。合并相关动作和对话。",
 			"character_constraint":   "**重要**：在characters字段中，只能使用上述角色列表中的角色ID（数字），不得自创角色或使用其他ID。",
 			"scene_constraint":       "**重要**：在scene_id字段中，必须从上述背景列表中选择最匹配的背景ID（数字）。如果没有合适的背景，则填null。",
 			"shot_description_label": "镜头描述: %s",

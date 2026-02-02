@@ -14,16 +14,18 @@
         <template #center>
           <div class="custom-steps">
             <div
-              class="step-item"
+              class="step-item clickable"
               :class="{ active: currentStep >= 0, current: currentStep === 0 }"
+              @click="goToStep(0)"
             >
               <div class="step-circle">1</div>
               <span class="step-text">{{ $t("workflow.steps.content") }}</span>
             </div>
             <el-icon class="step-arrow"><ArrowRight /></el-icon>
             <div
-              class="step-item"
+              class="step-item clickable"
               :class="{ active: currentStep >= 1, current: currentStep === 1 }"
+              @click="goToStep(1)"
             >
               <div class="step-circle">2</div>
               <span class="step-text">{{
@@ -32,8 +34,9 @@
             </div>
             <el-icon class="step-arrow"><ArrowRight /></el-icon>
             <div
-              class="step-item"
+              class="step-item clickable"
               :class="{ active: currentStep >= 2, current: currentStep === 2 }"
+              @click="goToStep(2)"
             >
               <div class="step-circle">3</div>
               <span class="step-text">{{
@@ -710,6 +713,18 @@
                 <el-icon><ArrowLeft /></el-icon>
                 {{ $t("workflow.prevStep") }}
               </el-button>
+              <div class="shot-count-inline">
+                <span class="shot-count-label">{{ $t("workflow.targetShotCount") }}：</span>
+                <el-input-number
+                  v-model="targetShotCount"
+                  :min="0"
+                  :max="50"
+                  :placeholder="$t('workflow.targetShotCountPlaceholder')"
+                  controls-position="right"
+                  size="default"
+                  style="width: 130px"
+                />
+              </div>
               <el-button @click="regenerateShots" :icon="MagicStick">
                 {{ $t("workflow.reSplitShots") }}
               </el-button>
@@ -727,6 +742,18 @@
           <!-- 未拆分时显示 -->
           <div v-else class="empty-shots">
             <el-empty :description="$t('workflow.splitStoryboardFirst')">
+              <div class="shot-count-input-wrapper">
+                <span class="shot-count-label">{{ $t("workflow.targetShotCount") }}：</span>
+                <el-input-number
+                  v-model="targetShotCount"
+                  :min="0"
+                  :max="50"
+                  :placeholder="$t('workflow.targetShotCountPlaceholder')"
+                  controls-position="right"
+                  style="width: 140px; margin-right: 12px"
+                />
+                <span class="shot-count-tip">{{ $t("workflow.targetShotCountTip") }}</span>
+              </div>
               <el-button
                 type="primary"
                 @click="generateShots"
@@ -1515,6 +1542,13 @@ const prevStep = () => {
   }
 };
 
+// 点击步骤头跳转到对应步骤
+const goToStep = (step: number) => {
+  if (step >= 0 && step <= 2) {
+    currentStep.value = step;
+  }
+};
+
 // 从localStorage加载已保存的模型配置
 const loadSavedModelConfig = () => {
   const savedTextModel = localStorage.getItem(`ai_text_model_${dramaId}`);
@@ -1981,6 +2015,7 @@ const batchGenerateSceneImages = async () => {
 const taskProgress = ref(0);
 const taskMessage = ref("");
 let pollTimer: any = null;
+const targetShotCount = ref<number>(0); // 0=自动根据剧情拆分，>0=指定镜头数
 
 const generateShots = async () => {
   if (!currentEpisode.value?.id) {
@@ -2017,6 +2052,7 @@ const generateShots = async () => {
     const response = await generationAPI.generateStoryboard(
       episodeId,
       selectedTextModel.value,
+      targetShotCount.value > 0 ? targetShotCount.value : undefined,
     );
 
     taskMessage.value = response.message || "任务已创建";
@@ -2573,6 +2609,15 @@ onMounted(() => {
     background: var(--bg-card-hover);
     transition: all 0.3s;
 
+    &.clickable {
+      cursor: pointer;
+    }
+
+    &.clickable:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+
     &.active {
       background: var(--accent-light);
 
@@ -2734,6 +2779,33 @@ onMounted(() => {
 .empty-shots {
   padding: 60px 0;
   text-align: center;
+}
+
+.shot-count-input-wrapper,
+.shot-count-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.shot-count-input-wrapper {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.shot-count-inline {
+  margin-bottom: 0;
+}
+
+.shot-count-label {
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+}
+
+.shot-count-tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .extracted-title {
